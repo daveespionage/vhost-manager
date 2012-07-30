@@ -1,5 +1,7 @@
 To use the (sort of) automated sites folder on windows with xampp:
 
+* put files in /bin
+* edit the vhost file where it says "[YOUR_WINDOWS_USER_NAME_HERE]" to ... your windows user name
 * disable UAC (otherwise the script will alert you every time it runs)
 	** go to control panel > system and security > Change User Account Control settings
 	** move slider to the bottom (do not notify)
