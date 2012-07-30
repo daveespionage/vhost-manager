@@ -1,0 +1,149 @@
+#!/usr/bin/php
+<?php
+
+/**
+ * automate the task of setting up apache virtual hosts
+ * @author Toby Miller <tobius.miller@gmail.com>
+ * @author David Cox-Espenlaub <daveespionage@gmail.com>
+ *
+ */
+
+// setup variables (change as needed)
+$sites_dir      = 'c:\sites';
+$hosts_file     = 'C:\Windows\System32\drivers\etc\HOSTS';
+$vhosts_file    = 'C:\xampp\apache\conf\extra\httpd-vhosts.conf';
+$log_dir		= 'C:\xampp\apache\logs';
+$tmp_dir        = 'C:\tmp';
+$xampp_dir		= 'C:\xampp';
+$diff_file      = "{$tmp_dir}/vhost.tmp";
+$start_token    = '## START VHOST';
+$end_token      = '## END VHOST';
+$ip_address     = '127.0.0.1';
+$domain_format  = '*.local';
+
+// ensure permissions are correct
+$who            = trim(`whoami`);
+$permissions    = false;
+$reason         = '';
+if ($who == '[YOUR_WINDOWS_USER_NAME_HERE]'){
+    if (is_readable($sites_dir)){
+        if (is_writable($hosts_file)){
+            if (is_writable($vhosts_file)){
+                if (is_writable($tmp_dir)){
+                    $permissions = true;
+                } else {
+                    $reason = "{$tmp_dir} is not writable";
+                }
+            } else {
+                $reason = "{$vhosts_file} is not writable";
+            }
+        } else {
+            $reason = "{$hosts_file} is not writable";
+        }
+    } else {
+        $reason = "{$sites_dir} is not readable";
+    }
+} else {
+    $reason = "user is not root";
+}
+if (!$permissions){
+    echo "fail: ensure that you have the proper permissions to run this script (hint: {$reason})\n user is {$who}\n";
+    exit;
+}
+
+// determine the last known state
+$last_state = file_get_contents($diff_file);
+
+// determine the current state
+$sites = array();
+$custom = array();
+$dirs = scandir($sites_dir);
+foreach($dirs as $dir){
+    if (preg_match('/[a-z0-9_-]+/i', $dir)){
+        if (is_link("{$sites_dir}/{$dir}") || is_dir("{$sites_dir}/{$dir}")){
+            $sites[] = strtolower($dir);
+        }elseif(is_file("{$sites_dir}/{$dir}")){
+			// should be a custom file that matches the name of a dir
+			$custom[strtolower($dir)] = file_get_contents("{$sites_dir}/{$dir}");
+		}
+    }
+}
+$current_state = implode("\n", $sites);
+
+// allow command-line force of reconfiguration
+$force = isset($argv[1]) && $argv[1] === '-force' ? true:false;
+
+// update settings if something has changed or if -force is called
+if ($last_state != $current_state || $force){
+    // update the hosts file
+    $hosts_content = file_get_contents($hosts_file);
+    $hosts_content = preg_replace('/\s+'.$start_token.'(.*)'.$end_token.'\s+/msU', '', $hosts_content);
+    $hosts_content .=  PHP_EOL . "{$start_token}" . PHP_EOL . PHP_EOL;
+    foreach($sites as $site){
+        $vhost_domain = preg_replace('/\*/', $site, $domain_format);
+        $hosts_content .= "{$ip_address}\t{$vhost_domain}" . PHP_EOL;
+    }
+    $hosts_content .=  PHP_EOL . PHP_EOL . "{$end_token}" . PHP_EOL;
+    if (!file_put_contents($hosts_file, $hosts_content)){
+        echo "fail: an error occurred while attempting to update {$hosts_file}\n";
+        exit;
+    } else {
+        echo "success: {$hosts_file} was updated successfully\n";
+    }
+
+    // update the vhosts file
+    $vhosts_content = file_get_contents($vhosts_file);
+    $vhosts_content = preg_replace('/\s+'.$start_token.'(.*)'.$end_token.'\s+/msU', '', $vhosts_content);
+    $vhosts_content .= PHP_EOL . PHP_EOL . "{$start_token}" . PHP_EOL . PHP_EOL;
+    foreach($sites as $site){
+        $vhost_domain = preg_replace('/\*/', $site, $domain_format);
+		// check for custom content
+		$custom_content = isset($custom[".{$site}"]) ? $custom[".{$site}"] : '';
+
+        $vhosts_content .= <<<EOF
+<VirtualHost *:80>
+    DocumentRoot "{$sites_dir}/{$site}"
+    ServerName {$vhost_domain}
+    LogFormat "%V %h %l %u %t \"%r\" %s %b" vcommon
+    ErrorLog "{$log_dir}/vhosts-{$site}-error_log"
+    CustomLog "{$log_dir}/vhosts-{$site}-access_log" vcommon
+	
+	{$custom_content}
+	
+    <Directory "{$sites_dir}/{$site}">
+        Options Indexes FollowSymLinks ExecCGI Includes
+        AllowOverride All
+        Order allow,deny
+        Allow from all
+    </Directory>
+</VirtualHost>
+
+
+EOF;
+    }
+    $vhosts_content .= "{$end_token}" . PHP_EOL . PHP_EOL;
+    if (!file_put_contents($vhosts_file, $vhosts_content)){
+        echo "fail: an error occurred while attempting to update {$vhosts_file}\n";
+        exit;
+    } else {
+        echo "success: {$vhosts_file} was updated successfully\n";
+    }
+
+    // update the diff file
+    if (!file_put_contents($diff_file, $current_state)){
+        echo "fail: an error occurred while attempting to update {$diff_file}\n";
+        exit;
+    } else {
+        echo "success: {$diff_file} was updated successfully\n";
+    }
+} else {
+    echo "meh: nothing to do\n";
+    exit;
+}
+
+// reload apache (if something went wrong php would have exited)
+echo "stopping Apache\n";
+$stop = `net stop "Apache2.2"`;
+echo "starting Apache\n";
+$start = `net start "Apache2.2"`;
+echo "done\n";
