@@ -19,7 +19,7 @@ To use the (sort of) automated sites folder on windows with xampp:
     * in an empty text file, type or paste custom environment lines
     * save to c:\sites\.sitename (no extension!)
     * repeat for all additional sites with custom environment settings
-Windows makes it absurdly complicated to get a scheduled task that runs without popping up a windown in front of you every 5 minutes, so scheduled tasks are out.  
+Windows makes it absurdly complicated to get a scheduled task that runs without popping up a window in front of you every 5 minutes, so scheduled tasks are out.  
 Your best bet is
 * create a shortcut on the desktop 
     * Target: C:\bin\runvhost.bat
@@ -27,3 +27,7 @@ Your best bet is
     * Advanced: Run as administrator
 	
 Now when you add a new symlink, click the shortcut AND PRESTO!
+
+For updating everything even if nothing has "changed", such as config files getting corrupted, there is -force
+
+> php c:\bin\vhost -force
