@@ -4,8 +4,6 @@
 /**
  * automate the task of setting up apache virtual hosts
  * @author Toby Miller <tobius.miller@gmail.com>
- * @author David Cox-Espenlaub <daveespionage@gmail.com>
- *
  */
 
 // setup variables (change as needed)
@@ -99,6 +97,7 @@ if ($last_state != $current_state || $force){
         $vhost_domain = preg_replace('/\*/', $site, $domain_format);
 		// check for custom content
 		$custom_content = isset($custom[".{$site}"]) ? $custom[".{$site}"] : '';
+        $custom_directory_content = isset($custom[".directory.{$site}"]) ? $custom[".directory.{$site}"] : '';
 
         $vhosts_content .= <<<EOF
 <VirtualHost *:80>
@@ -113,8 +112,10 @@ if ($last_state != $current_state || $force){
     <Directory "{$sites_dir}/{$site}">
         Options Indexes FollowSymLinks ExecCGI Includes
         AllowOverride All
+#        AllowOverride None
         Order allow,deny
         Allow from all
+        {$custom_directory_content}
     </Directory>
 </VirtualHost>
 
@@ -146,4 +147,4 @@ echo "stopping Apache\n";
 $stop = `net stop "Apache2.2"`;
 echo "starting Apache\n";
 $start = `net start "Apache2.2"`;
-echo "done\n";
+echo "done\n";#!/usr/bin/php
