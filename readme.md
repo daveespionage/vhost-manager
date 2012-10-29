@@ -1,4 +1,10 @@
-To use the (sort of) automated sites folder on windows with xampp:
+vhost-manager
+=============
+
+Modified version of the *nix version created by https://github.com/tobius
+
+To use the (sort of) automated sites folder on windows with xampp
+-----------------------------------------------------------------
 
 * disable UAC (otherwise the script will alert you every time it runs)
     * go to control panel > system and security > Change User Account Control settings
